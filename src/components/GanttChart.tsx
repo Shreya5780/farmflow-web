@@ -1,23 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Container, Paper, Typography } from '@mui/material'
+import { Box, Container, Paper, Typography, Chip, Stack } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { gantt } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { api } from '../services/api'
 import { addDays, formatDate } from '../utils/date'
-import type { Activity, ActivityType, Crop, WeatherData } from '../types'
-
-const getRiskLabel = (risk: string) => {
-  if (risk === 'HIGH') return 'High'
-  if (risk === 'MEDIUM') return 'Medium'
-  return 'Low'
-}
+import { assessActivityRiskOverWindow, getRiskColor } from '../utils/riskEngine'
+import type { Activity, ActivityType, Crop, RiskLevel, WeatherData } from '../types'
 
 const GanttChart = () => {
+  const { t, i18n } = useTranslation()
   const ganttContainer = useRef<HTMLDivElement | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [crops, setCrops] = useState<Crop[]>([])
-  const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [forecast, setForecast] = useState<WeatherData[]>([])
   const [loading, setLoading] = useState(true)
+  const weather = forecast[0] ?? null
 
   useEffect(() => {
     const loadPlanner = async () => {
@@ -32,7 +30,7 @@ const GanttChart = () => {
 
         if (farms.length > 0) {
           const weatherData = await api.getWeather(farms[0].latitude, farms[0].longitude)
-          setWeather(weatherData[0] ?? null)
+          setForecast(weatherData)
         }
       } finally {
         setLoading(false)
@@ -45,15 +43,22 @@ const GanttChart = () => {
   const tasks = useMemo(() => {
     const mapped = activities.map((activity) => {
       const crop = crops.find((c) => c.id === activity.cropId)
-      const cropName = crop?.name || 'Unknown Crop'
+      const cropName = crop
+        ? t(`cropName.${crop.name}`, { defaultValue: crop.name })
+        : t('forms.unknownCrop')
+
+      const risk =
+        forecast.length > 0
+          ? assessActivityRiskOverWindow(activity.type, activity.startDate, activity.endDate, forecast)
+          : { riskLevel: activity.riskLevel, riskScore: activity.riskScore }
 
       return {
         id: activity.id,
-        text: `${activity.type} — ${cropName}`,
+        text: `${t(`activityType.${activity.type}`)} — ${cropName}`,
         start_date: formatDate(activity.startDate),
         end_date: formatDate(addDays(activity.endDate, 1)),
-        progress: activity.riskScore / 100,
-        risk: activity.riskLevel,
+        progress: risk.riskScore / 100,
+        risk: risk.riskLevel,
         type: activity.type as ActivityType,
       }
     })
@@ -62,7 +67,7 @@ const GanttChart = () => {
       data: mapped,
       links: [],
     }
-  }, [activities, crops])
+  }, [activities, crops, forecast, t])
 
   useEffect(() => {
     if (!ganttContainer.current) return
@@ -81,15 +86,15 @@ const GanttChart = () => {
     gantt.config.open_tree_initially = true
 
     gantt.config.columns = [
-      { name: 'text', label: 'Activity', tree: true, width: 220 },
+      { name: 'text', label: t('planner.col.activity'), tree: true, width: 220 },
       {
         name: 'risk',
-        label: 'Risk',
+        label: t('planner.col.risk'),
         width: 100,
-        template: (task: any) => getRiskLabel(task.risk),
+        template: (task: any) => t(`risk.${task.risk}`),
       },
-      { name: 'start_date', label: 'Start', align: 'center', width: 90 },
-      { name: 'end_date', label: 'End', align: 'center', width: 90 },
+      { name: 'start_date', label: t('planner.col.start'), align: 'center', width: 90 },
+      { name: 'end_date', label: t('planner.col.end'), align: 'center', width: 90 },
     ]
 
     gantt.templates.task_class = (_start: any, _end: any, task: any) => {
@@ -112,34 +117,47 @@ const GanttChart = () => {
     return () => {
       gantt.clearAll()
     }
-  }, [tasks])
+  }, [tasks, t, i18n.language])
+
+  const riskLevels: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH']
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 3 }}>
-        🌾 FarmPlan Crop Planner
+      <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 3 }}>
+        🌾 {t('planner.title')}
       </Typography>
 
-      <Paper sx={{ p: 3, mb: 3, bgcolor: '#f7f9fd' }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Weather risk snapshot
-        </Typography>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 1 }}>
+          <Typography variant="h6">{t('planner.snapshotTitle')}</Typography>
+          <Stack direction="row" spacing={1}>
+            {riskLevels.map((level) => (
+              <Chip
+                key={level}
+                size="small"
+                label={t(`risk.${level}`)}
+                sx={{ bgcolor: getRiskColor(level), color: '#fff' }}
+              />
+            ))}
+          </Stack>
+        </Stack>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          This planner uses the FarmPlan service layer to load crops, activities, and weather. When backend integration is enabled, the same service contract will provide production data.
+          {t('planner.snapshotDesc')}
         </Typography>
         {weather ? (
           <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {weather.date.toLocaleDateString()} — {weather.condition}
+              {weather.date.toLocaleDateString()} —{' '}
+              {t(`condition.${weather.condition}`, { defaultValue: weather.conditionDescription })}
             </Typography>
-            <Typography variant="body2">Rain: {weather.rainMm}mm</Typography>
-            <Typography variant="body2">Temp: {weather.tempC}°C</Typography>
-            <Typography variant="body2">Wind: {weather.windKph} kph</Typography>
-            <Typography variant="body2">Humidity: {weather.humidity}%</Typography>
+            <Typography variant="body2">{t('weather.rainChance')}: {Math.round(weather.precipitationProbability * 100)}%</Typography>
+            <Typography variant="body2">{t('weather.temp')}: {weather.tempRounded}°C</Typography>
+            <Typography variant="body2">{t('weather.wind')}: {Math.round(weather.windKph)} km/h</Typography>
+            <Typography variant="body2">{t('weather.humidity')}: {weather.humidity}%</Typography>
           </Box>
         ) : (
           <Typography variant="body2" sx={{ mt: 2 }}>
-            {loading ? 'Loading weather...' : 'No weather snapshot available yet.'}
+            {loading ? t('planner.loadingWeather') : t('planner.noWeather')}
           </Typography>
         )}
       </Paper>

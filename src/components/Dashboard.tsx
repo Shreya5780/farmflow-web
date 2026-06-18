@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Container,
   Grid,
@@ -23,12 +23,39 @@ import {
   InputLabel,
   FormControl,
   Stack,
+  Skeleton,
+  alpha,
+  useTheme,
 } from '@mui/material'
+import {
+  Grass as GrassIcon,
+  Spa as SpaIcon,
+  EventNote as EventNoteIcon,
+  WarningAmber as WarningAmberIcon,
+  Add as AddIcon,
+  Thermostat as ThermostatIcon,
+  WaterDrop as WaterDropIcon,
+  Air as AirIcon,
+  Opacity as OpacityIcon,
+} from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 import { api } from '../services/api'
 import type { Activity, ActivityType, Crop, Farm, WeatherData } from '../types'
-import { assessActivityRisk, getRiskColor } from '../utils/riskEngine'
+import { assessActivityRiskOverWindow, getRiskColor } from '../utils/riskEngine'
+
+const ACTIVITY_EMOJI: Record<ActivityType, string> = {
+  SOW: '🌱',
+  TRANSPLANT: '🌿',
+  IRRIGATE: '💧',
+  FERTILIZE: '🧪',
+  SPRAY: '🌊',
+  HARVEST: '🌾',
+}
 
 const Dashboard = () => {
+  const { t } = useTranslation()
+  const theme = useTheme()
+
   const [farms, setFarms] = useState<Farm[]>([])
   const [crops, setCrops] = useState<Crop[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
@@ -87,7 +114,7 @@ const Dashboard = () => {
         setWeather([])
       }
     } catch (err) {
-      setError('Failed to load FarmPlan dashboard data. Please check your backend or network connection.')
+      setError(t('dashboard.loadError'))
     } finally {
       setLoading(false)
     }
@@ -95,6 +122,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const resetFarmForm = () => {
@@ -142,7 +170,7 @@ const Dashboard = () => {
 
   const handleCreateFarm = async () => {
     if (!farmForm.name || !farmForm.region || !farmForm.latitude || !farmForm.longitude) {
-      setFormError('Please fill in all farm fields.')
+      setFormError(t('forms.fillAll'))
       return
     }
 
@@ -157,13 +185,13 @@ const Dashboard = () => {
       setOpenFarmDialog(false)
       await loadData()
     } catch (err) {
-      setFormError('Unable to create farm. Please try again.')
+      setFormError(t('forms.createFarmError'))
     }
   }
 
   const handleCreateCrop = async () => {
     if (!cropForm.farmId || !cropForm.name || !cropForm.sowDate || !cropForm.expectedHarvestDate) {
-      setFormError('Please fill in all crop fields.')
+      setFormError(t('forms.fillAll'))
       return
     }
 
@@ -179,13 +207,13 @@ const Dashboard = () => {
       setOpenCropDialog(false)
       await loadData()
     } catch (err) {
-      setFormError('Unable to create crop. Please try again.')
+      setFormError(t('forms.createCropError'))
     }
   }
 
   const handleCreateActivity = async () => {
     if (!activityForm.cropId || !activityForm.startDate || !activityForm.endDate || !activityForm.type) {
-      setFormError('Please fill in all activity fields.')
+      setFormError(t('forms.fillAll'))
       return
     }
 
@@ -204,7 +232,7 @@ const Dashboard = () => {
       setOpenActivityDialog(false)
       await loadData()
     } catch (err) {
-      setFormError('Unable to create activity. Please try again.')
+      setFormError(t('forms.createActivityError'))
     }
   }
 
@@ -214,170 +242,186 @@ const Dashboard = () => {
     return activities.filter((activity) => activity.startDate >= now && activity.startDate <= thirtyDaysFromNow)
   }, [activities])
 
-  const highRiskActivities = useMemo(() => {
-    return activities.filter((activity) => activity.riskLevel === 'HIGH')
-  }, [activities])
-
   const activitiesWithRisk = useMemo(() => {
     return activities.map((activity) => {
-      const weatherSnapshot = weather[0]
-      if (weatherSnapshot) {
-        const risk = assessActivityRisk(activity.type as ActivityType, weatherSnapshot)
-        return {
-          ...activity,
-          riskLevel: risk.riskLevel,
-          riskScore: risk.riskScore,
-          riskReason: risk.reason,
-        }
+      if (weather.length === 0) return activity
+      // Score each activity against the forecast days overlapping its own date window,
+      // not a single shared snapshot — so different schedules yield different risk.
+      const risk = assessActivityRiskOverWindow(
+        activity.type as ActivityType,
+        activity.startDate,
+        activity.endDate,
+        weather,
+      )
+      return {
+        ...activity,
+        riskLevel: risk.riskLevel,
+        riskScore: risk.riskScore,
+        riskReason: risk.reason,
       }
-
-      return activity
     })
   }, [activities, weather])
 
-  const getActivityTypeLabel = (type: ActivityType): string => {
-    const labels: Record<ActivityType, string> = {
-      SOW: '🌱 Sow',
-      TRANSPLANT: '🌿 Transplant',
-      IRRIGATE: '💧 Irrigate',
-      FERTILIZE: '🧪 Fertilize',
-      SPRAY: '🌊 Spray',
-      HARVEST: '🌾 Harvest',
-    }
-    return labels[type] || type
+  const highRiskActivities = useMemo(
+    () => activitiesWithRisk.filter((activity) => activity.riskLevel === 'HIGH'),
+    [activitiesWithRisk],
+  )
+
+  const activityLabel = (type: ActivityType) => `${ACTIVITY_EMOJI[type] ?? ''} ${t(`activityType.${type}`)}`.trim()
+  const cropLabel = (cropId: string) => {
+    const crop = crops.find((c) => c.id === cropId)
+    return crop ? t(`cropName.${crop.name}`, { defaultValue: crop.name }) : t('forms.unknownCrop')
   }
 
-  const getCropName = (cropId: string) => {
-    const crop = crops.find((c) => c.id === cropId)
-    return crop?.name || 'Unknown Crop'
-  }
+  const stats = [
+    { key: 'farms', value: farms.length, icon: <GrassIcon />, from: '#43a047', to: '#1b5e20' },
+    { key: 'crops', value: crops.length, icon: <SpaIcon />, from: '#26a69a', to: '#00695c' },
+    { key: 'activities', value: activities.length, icon: <EventNoteIcon />, from: '#42a5f5', to: '#1565c0' },
+    { key: 'highRisk', value: highRiskActivities.length, icon: <WarningAmberIcon />, from: '#ffa726', to: '#e53935' },
+  ] as const
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h3" component="h1" sx={{ mb: 4, fontWeight: 'bold' }}>
-        🌾 FarmPlan Dashboard
-      </Typography>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h3" component="h1" sx={{ fontWeight: 800 }}>
+          🌾 {t('dashboard.title')}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5 }}>
+          {t('dashboard.subtitle')}
+        </Typography>
+      </Box>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4 }}>
-        <Button variant="contained" onClick={handleOpenFarmDialog}>
-          Add Farm
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 4 }}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenFarmDialog}>
+          {t('actions.addFarm')}
         </Button>
-        <Button variant="outlined" onClick={handleOpenCropDialog} disabled={farms.length === 0}>
-          Add Crop
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={handleOpenCropDialog} disabled={farms.length === 0}>
+          {t('actions.addCrop')}
         </Button>
-        <Button variant="outlined" onClick={handleOpenActivityDialog} disabled={crops.length === 0}>
-          Add Activity
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={handleOpenActivityDialog}
+          disabled={crops.length === 0}
+        >
+          {t('actions.addActivity')}
         </Button>
       </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 4 }}>
+        <Alert severity="error" sx={{ mb: 4 }} action={<Button color="inherit" size="small" onClick={loadData}>{t('actions.retry')}</Button>}>
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-            <CardContent sx={{ color: 'white' }}>
-              <Typography color="inherit" sx={{ fontSize: 14, mb: 1 }}>
-                Total Farms
-              </Typography>
-              <Typography variant="h4">{farms.length}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-            <CardContent sx={{ color: 'white' }}>
-              <Typography color="inherit" sx={{ fontSize: 14, mb: 1 }}>
-                Total Crops
-              </Typography>
-              <Typography variant="h4">{crops.length}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-            <CardContent sx={{ color: 'white' }}>
-              <Typography color="inherit" sx={{ fontSize: 14, mb: 1 }}>
-                Activities
-              </Typography>
-              <Typography variant="h4">{activities.length}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
-            <CardContent sx={{ color: 'white' }}>
-              <Typography color="inherit" sx={{ fontSize: 14, mb: 1 }}>
-                High Risk
-              </Typography>
-              <Typography variant="h4">{highRiskActivities.length}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {stats.map((stat) => (
+          <Grid item xs={12} sm={6} md={3} key={stat.key}>
+            <Card
+              sx={{
+                position: 'relative',
+                overflow: 'hidden',
+                color: '#fff',
+                backgroundImage: `linear-gradient(135deg, ${stat.from} 0%, ${stat.to} 100%)`,
+                boxShadow: `0 10px 30px ${alpha(stat.to, 0.35)}`,
+              }}
+            >
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 14, opacity: 0.9, mb: 0.5 }}>
+                      {t(`dashboard.stats.${stat.key}`)}
+                    </Typography>
+                    {loading ? (
+                      <Skeleton variant="text" width={48} height={48} sx={{ bgcolor: alpha('#fff', 0.3) }} />
+                    ) : (
+                      <Typography variant="h3" sx={{ fontWeight: 800, lineHeight: 1 }}>
+                        {stat.value}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      bgcolor: alpha('#fff', 0.2),
+                    }}
+                  >
+                    {stat.icon}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
       {weather[0] && (
-        <Alert severity="warning" sx={{ mb: 4 }}>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            <strong>Current Forecast Alert:</strong> {weather[0].condition} | Rain: {weather[0].rainMm}mm | Temp: {weather[0].tempC}°C | Wind: {weather[0].windKph} kph | Humidity: {weather[0].humidity}%
+        <Alert severity="warning" icon={<WaterDropIcon />} sx={{ mb: 4, borderRadius: 3 }}>
+          <Typography variant="body2">
+            <strong>{t('dashboard.forecastAlert')}:</strong>{' '}
+            {t(`condition.${weather[0].condition}`, { defaultValue: weather[0].conditionDescription })} ·{' '}
+            {t('weather.rainChance')} {Math.round(weather[0].precipitationProbability * 100)}% · {t('weather.temp')}{' '}
+            {weather[0].tempRounded}°C · {t('weather.wind')} {Math.round(weather[0].windKph)} km/h · {t('weather.humidity')}{' '}
+            {weather[0].humidity}%
           </Typography>
         </Alert>
       )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-              📅 Upcoming Activities (Next 30 Days)
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              📅 {t('dashboard.upcoming')}
             </Typography>
             {loading ? (
-              <Typography variant="body2">Loading activities...</Typography>
+              <Stack spacing={1}>
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} variant="rounded" height={72} />
+                ))}
+              </Stack>
             ) : upcomingActivities.length > 0 ? (
               <List sx={{ maxHeight: 400, overflow: 'auto' }}>
                 {upcomingActivities.map((activity) => {
                   const risk = activitiesWithRisk.find((a) => a.id === activity.id)
+                  const level = risk?.riskLevel ?? activity.riskLevel
                   return (
                     <ListItem
                       key={activity.id}
                       sx={{
                         mb: 1,
                         p: 1.5,
-                        bgcolor: '#f5f5f5',
-                        borderLeft: `4px solid ${getRiskColor(activity.riskLevel)}`,
-                        borderRadius: 1,
+                        bgcolor: alpha(theme.palette.text.primary, 0.04),
+                        borderLeft: `4px solid ${getRiskColor(level)}`,
+                        borderRadius: 2,
                       }}
                     >
                       <ListItemText
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <span>{getActivityTypeLabel(activity.type)}</span>
+                            <span>{activityLabel(activity.type)}</span>
                             <Chip
-                              label={activity.riskLevel}
+                              label={t(`risk.${level}`)}
                               size="small"
-                              sx={{
-                                backgroundColor: getRiskColor(activity.riskLevel),
-                                color: 'white',
-                                fontWeight: 'bold',
-                              }}
+                              sx={{ backgroundColor: getRiskColor(level), color: '#fff' }}
                             />
                           </Box>
                         }
+                        secondaryTypographyProps={{ component: 'div' }}
                         secondary={
-                          <Box sx={{ mt: 1 }}>
+                          <Box sx={{ mt: 0.5 }}>
                             <Typography variant="caption" display="block">
-                              <strong>Crop:</strong> {getCropName(activity.cropId)}
+                              <strong>{t('dashboard.crop')}:</strong> {cropLabel(activity.cropId)}
                             </Typography>
                             <Typography variant="caption" display="block">
-                              <strong>Date:</strong> {activity.startDate.toLocaleDateString()} - {activity.endDate.toLocaleDateString()}
+                              <strong>{t('dashboard.date')}:</strong> {activity.startDate.toLocaleDateString()} –{' '}
+                              {activity.endDate.toLocaleDateString()}
                             </Typography>
                             {risk?.riskReason && (
-                              <Typography variant="caption" display="block" sx={{ color: '#d32f2f', mt: 0.5 }}>
+                              <Typography variant="caption" display="block" sx={{ color: 'error.main', mt: 0.5 }}>
                                 {risk.riskReason}
                               </Typography>
                             )}
@@ -390,104 +434,92 @@ const Dashboard = () => {
               </List>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No upcoming activities in the next 30 days
+                {t('dashboard.upcomingEmpty')}
               </Typography>
             )}
           </Paper>
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-              ☀️ 5-Day Weather Forecast
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              ☀️ {t('dashboard.forecast')}
             </Typography>
-            <List>
-              {weather.map((forecast, idx) => (
-                <ListItem
-                  key={idx}
-                  sx={{
-                    mb: 1,
-                    p: 1.5,
-                    bgcolor: '#f5f5f5',
-                    borderRadius: 1,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                      {forecast.date.toLocaleDateString()}
-                    </Typography>
-                    <Typography variant="caption" display="block">
-                      {forecast.condition}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', minWidth: 200 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                        🌡️
+            {loading ? (
+              <Stack spacing={1}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} variant="rounded" height={56} />
+                ))}
+              </Stack>
+            ) : (
+              <List>
+                {weather.map((forecast, idx) => (
+                  <ListItem
+                    key={idx}
+                    sx={{
+                      mb: 1,
+                      p: 1.5,
+                      bgcolor: alpha(theme.palette.text.primary, 0.04),
+                      borderRadius: 2,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 1,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 120 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {forecast.date.toLocaleDateString()}
                       </Typography>
-                      <Typography variant="caption">{forecast.tempC}°C</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                        💧
+                      <Typography variant="caption" color="text.secondary">
+                        {t(`condition.${forecast.condition}`, { defaultValue: forecast.conditionDescription })}
                       </Typography>
-                      <Typography variant="caption">{forecast.rainMm}mm</Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                        🌬️
-                      </Typography>
-                      <Typography variant="caption">{forecast.windKph} kph</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <Metric icon={<ThermostatIcon fontSize="inherit" />} value={`${forecast.tempRounded}°C`} />
+                      <Metric
+                        icon={<OpacityIcon fontSize="inherit" />}
+                        value={`${Math.round(forecast.precipitationProbability * 100)}%`}
+                      />
+                      <Metric icon={<AirIcon fontSize="inherit" />} value={`${Math.round(forecast.windKph)} km/h`} />
                     </Box>
-                  </Box>
-                </ListItem>
-              ))}
-            </List>
+                  </ListItem>
+                ))}
+              </List>
+            )}
           </Paper>
         </Grid>
 
         {highRiskActivities.length > 0 && (
           <Grid item xs={12}>
-            <Paper sx={{ p: 3, bgcolor: '#fff3e0', borderLeft: '4px solid #ff6f00' }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#e65100' }}>
-                ⚠️ High Risk Activities - Review Needed
+            <Paper sx={{ p: 3, bgcolor: alpha(theme.palette.warning.main, 0.1), borderLeft: `4px solid ${theme.palette.warning.dark}` }}>
+              <Typography variant="h6" sx={{ mb: 2, color: 'warning.dark' }}>
+                ⚠️ {t('dashboard.highRiskTitle')}
               </Typography>
               <List>
                 {highRiskActivities.map((activity) => (
-                  <ListItem
-                    key={activity.id}
-                    sx={{
-                      mb: 1,
-                      p: 1.5,
-                      bgcolor: '#fff8e1',
-                      borderRadius: 1,
-                    }}
-                  >
+                  <ListItem key={activity.id} sx={{ mb: 1, p: 1.5, bgcolor: 'background.paper', borderRadius: 2 }}>
                     <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span>{getActivityTypeLabel(activity.type)}</span>
+                          <span>{activityLabel(activity.type)}</span>
                           <Chip
-                            label={activity.riskLevel}
+                            label={t(`risk.${activity.riskLevel}`)}
                             size="small"
-                            sx={{
-                              backgroundColor: getRiskColor(activity.riskLevel),
-                              color: 'white',
-                              fontWeight: 'bold',
-                            }}
+                            sx={{ backgroundColor: getRiskColor(activity.riskLevel), color: '#fff' }}
                           />
                         </Box>
                       }
+                      secondaryTypographyProps={{ component: 'div' }}
                       secondary={
-                        <Box sx={{ mt: 1 }}>
+                        <Box sx={{ mt: 0.5 }}>
                           <Typography variant="caption" display="block">
-                            <strong>Crop:</strong> {getCropName(activity.cropId)}
+                            <strong>{t('dashboard.crop')}:</strong> {cropLabel(activity.cropId)}
                           </Typography>
                           <Typography variant="caption" display="block">
-                            <strong>Window:</strong> {activity.startDate.toLocaleDateString()} - {activity.endDate.toLocaleDateString()}
+                            <strong>{t('dashboard.window')}:</strong> {activity.startDate.toLocaleDateString()} –{' '}
+                            {activity.endDate.toLocaleDateString()}
                           </Typography>
                         </Box>
                       }
@@ -500,186 +532,100 @@ const Dashboard = () => {
         )}
       </Grid>
 
+      {/* Add Farm */}
       <Dialog open={openFarmDialog} onClose={() => setOpenFarmDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Add Farm</DialogTitle>
+        <DialogTitle>{t('actions.addFarm')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Farm name"
-              value={farmForm.name}
-              onChange={(event) => setFarmForm({ ...farmForm, name: event.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Region"
-              value={farmForm.region}
-              onChange={(event) => setFarmForm({ ...farmForm, region: event.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Latitude"
-              value={farmForm.latitude}
-              onChange={(event) => setFarmForm({ ...farmForm, latitude: event.target.value })}
-              fullWidth
-              type="number"
-            />
-            <TextField
-              label="Longitude"
-              value={farmForm.longitude}
-              onChange={(event) => setFarmForm({ ...farmForm, longitude: event.target.value })}
-              fullWidth
-              type="number"
-            />
+            <TextField label={t('forms.farmName')} value={farmForm.name} onChange={(e) => setFarmForm({ ...farmForm, name: e.target.value })} fullWidth />
+            <TextField label={t('forms.region')} value={farmForm.region} onChange={(e) => setFarmForm({ ...farmForm, region: e.target.value })} fullWidth />
+            <TextField label={t('forms.latitude')} value={farmForm.latitude} onChange={(e) => setFarmForm({ ...farmForm, latitude: e.target.value })} fullWidth type="number" />
+            <TextField label={t('forms.longitude')} value={farmForm.longitude} onChange={(e) => setFarmForm({ ...farmForm, longitude: e.target.value })} fullWidth type="number" />
             {formError && <Alert severity="error">{formError}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenFarmDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateFarm}>
-            Create Farm
-          </Button>
+          <Button onClick={() => setOpenFarmDialog(false)}>{t('actions.cancel')}</Button>
+          <Button variant="contained" onClick={handleCreateFarm}>{t('actions.createFarm')}</Button>
         </DialogActions>
       </Dialog>
 
+      {/* Add Crop */}
       <Dialog open={openCropDialog} onClose={() => setOpenCropDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Add Crop</DialogTitle>
+        <DialogTitle>{t('actions.addCrop')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <FormControl fullWidth>
-              <InputLabel id="farm-select-label">Farm</InputLabel>
-              <Select
-                labelId="farm-select-label"
-                value={cropForm.farmId}
-                label="Farm"
-                onChange={(event) => setCropForm({ ...cropForm, farmId: event.target.value })}
-              >
+              <InputLabel id="farm-select-label">{t('forms.farm')}</InputLabel>
+              <Select labelId="farm-select-label" value={cropForm.farmId} label={t('forms.farm')} onChange={(e) => setCropForm({ ...cropForm, farmId: e.target.value })}>
                 {farms.map((farm) => (
-                  <MenuItem key={farm.id} value={farm.id}>
-                    {farm.name}
-                  </MenuItem>
+                  <MenuItem key={farm.id} value={farm.id}>{farm.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <TextField
-              label="Crop name"
-              value={cropForm.name}
-              onChange={(event) => setCropForm({ ...cropForm, name: event.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Variety"
-              value={cropForm.variety}
-              onChange={(event) => setCropForm({ ...cropForm, variety: event.target.value })}
-              fullWidth
-            />
+            <TextField label={t('forms.cropName')} value={cropForm.name} onChange={(e) => setCropForm({ ...cropForm, name: e.target.value })} fullWidth />
+            <TextField label={t('forms.variety')} value={cropForm.variety} onChange={(e) => setCropForm({ ...cropForm, variety: e.target.value })} fullWidth />
             <Stack direction="row" spacing={2}>
-              <TextField
-                label="Sow date"
-                type="date"
-                value={cropForm.sowDate}
-                onChange={(event) => setCropForm({ ...cropForm, sowDate: event.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="Harvest date"
-                type="date"
-                value={cropForm.expectedHarvestDate}
-                onChange={(event) => setCropForm({ ...cropForm, expectedHarvestDate: event.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
+              <TextField label={t('forms.sowDate')} type="date" value={cropForm.sowDate} onChange={(e) => setCropForm({ ...cropForm, sowDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField label={t('forms.harvestDate')} type="date" value={cropForm.expectedHarvestDate} onChange={(e) => setCropForm({ ...cropForm, expectedHarvestDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Stack>
-            <TextField
-              label="Estimated yield"
-              type="number"
-              value={cropForm.estimatedYield}
-              onChange={(event) => setCropForm({ ...cropForm, estimatedYield: event.target.value })}
-              fullWidth
-            />
+            <TextField label={t('forms.estimatedYield')} type="number" value={cropForm.estimatedYield} onChange={(e) => setCropForm({ ...cropForm, estimatedYield: e.target.value })} fullWidth />
             {formError && <Alert severity="error">{formError}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCropDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateCrop} disabled={!cropForm.farmId}>
-            Create Crop
-          </Button>
+          <Button onClick={() => setOpenCropDialog(false)}>{t('actions.cancel')}</Button>
+          <Button variant="contained" onClick={handleCreateCrop} disabled={!cropForm.farmId}>{t('actions.createCrop')}</Button>
         </DialogActions>
       </Dialog>
 
+      {/* Add Activity */}
       <Dialog open={openActivityDialog} onClose={() => setOpenActivityDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Add Activity</DialogTitle>
+        <DialogTitle>{t('actions.addActivity')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <FormControl fullWidth>
-              <InputLabel id="crop-select-label">Crop</InputLabel>
-              <Select
-                labelId="crop-select-label"
-                value={activityForm.cropId}
-                label="Crop"
-                onChange={(event) => setActivityForm({ ...activityForm, cropId: event.target.value })}
-              >
+              <InputLabel id="crop-select-label">{t('dashboard.crop')}</InputLabel>
+              <Select labelId="crop-select-label" value={activityForm.cropId} label={t('dashboard.crop')} onChange={(e) => setActivityForm({ ...activityForm, cropId: e.target.value })}>
                 {crops.map((crop) => (
                   <MenuItem key={crop.id} value={crop.id}>
-                    {crop.name} ({farms.find((farm) => farm.id === crop.farmId)?.name || 'Unknown Farm'})
+                    {t(`cropName.${crop.name}`, { defaultValue: crop.name })} ({farms.find((farm) => farm.id === crop.farmId)?.name || t('forms.unknownFarm')})
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel id="activity-type-label">Type</InputLabel>
-              <Select
-                labelId="activity-type-label"
-                value={activityForm.type}
-                label="Type"
-                onChange={(event) => setActivityForm({ ...activityForm, type: event.target.value as ActivityType })}
-              >
+              <InputLabel id="activity-type-label">{t('forms.type')}</InputLabel>
+              <Select labelId="activity-type-label" value={activityForm.type} label={t('forms.type')} onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value as ActivityType })}>
                 {activityTypes.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type}
-                  </MenuItem>
+                  <MenuItem key={type} value={type}>{activityLabel(type)}</MenuItem>
                 ))}
               </Select>
             </FormControl>
             <Stack direction="row" spacing={2}>
-              <TextField
-                label="Start date"
-                type="date"
-                value={activityForm.startDate}
-                onChange={(event) => setActivityForm({ ...activityForm, startDate: event.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="End date"
-                type="date"
-                value={activityForm.endDate}
-                onChange={(event) => setActivityForm({ ...activityForm, endDate: event.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
+              <TextField label={t('forms.startDate')} type="date" value={activityForm.startDate} onChange={(e) => setActivityForm({ ...activityForm, startDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField label={t('forms.endDate')} type="date" value={activityForm.endDate} onChange={(e) => setActivityForm({ ...activityForm, endDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Stack>
-            <TextField
-              label="Description"
-              value={activityForm.description}
-              onChange={(event) => setActivityForm({ ...activityForm, description: event.target.value })}
-              fullWidth
-              multiline
-              minRows={2}
-            />
+            <TextField label={t('forms.description')} value={activityForm.description} onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })} fullWidth multiline minRows={2} />
             {formError && <Alert severity="error">{formError}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenActivityDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateActivity} disabled={!activityForm.cropId}>
-            Create Activity
-          </Button>
+          <Button onClick={() => setOpenActivityDialog(false)}>{t('actions.cancel')}</Button>
+          <Button variant="contained" onClick={handleCreateActivity} disabled={!activityForm.cropId}>{t('actions.createActivity')}</Button>
         </DialogActions>
       </Dialog>
     </Container>
   )
 }
+
+const Metric = ({ icon, value }: { icon: ReactNode; value: string }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 18, color: 'text.secondary' }}>
+    {icon}
+    <Typography variant="caption" sx={{ fontWeight: 600 }}>
+      {value}
+    </Typography>
+  </Box>
+)
 
 export default Dashboard

@@ -44,3 +44,44 @@ img {
   max-width: 100%;
   display: block;
 }
+
+/* === dhtmlx-gantt risk coloring (used by GanttChart.tsx) === */
+.gantt_task_line.risk-low .gantt_task_content,
+.gantt_task_line.risk-medium .gantt_task_content,
+.gantt_task_line.risk-high .gantt_task_content {
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+.gantt_task_line.risk-low .gantt_task_content {
+  background: #43a047 !important;
+  border-color: #43a047 !important;
+}
+
+.gantt_task_line.risk-medium .gantt_task_content {
+  background: #fb8c00 !important;
+  border-color: #fb8c00 !important;
+}
+
+.gantt_task_line.risk-high .gantt_task_content {
+  background: #e53935 !important;
+  border-color: #e53935 !important;
+}
+
+.gantt_task_line.risk-low .gantt_task_progress,
+.gantt_task_line.risk-medium .gantt_task_progress,
+.gantt_task_line.risk-high .gantt_task_progress {
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+.grid-risk-high .gantt_row_cell {
+  border-left: 4px solid #e53935;
+}
+
+.grid-risk-medium .gantt_row_cell {
+  border-left: 4px solid #fb8c00;
+}
+
+.grid-risk-low .gantt_row_cell {
+  border-left: 4px solid #43a047;
+}

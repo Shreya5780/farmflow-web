@@ -40,13 +40,14 @@ export interface Activity {
 }
 
 export interface WeatherData {
-  location: string;
   date: Date;
-  rainMm: number;
   tempC: number;
-  windKph: number;
+  tempRounded: number;
   humidity: number;
-  condition: string; // e.g., "Clear", "Rainy", "Cloudy"
+  windKph: number;
+  precipitationProbability: number; // 0..1 chance of precipitation (OpenWeatherMap "pop")
+  condition: string; // OpenWeatherMap main, e.g., "Clear", "Clouds", "Rain"
+  conditionDescription: string; // e.g., "light rain", "scattered clouds"
   timestamp: Date;
 }
 

@@ -4,13 +4,15 @@ import AppShell from './components/AppShell'
 import HomePage from './pages/HomePage'
 import PlannerPage from './pages/PlannerPage'
 import NotFoundPage from './pages/NotFoundPage'
-import './App.css'
 
 function App() {
   return (
     <BrowserRouter>
       <AppShell />
-      <Box component="main" sx={{ minHeight: 'calc(100vh - 80px)', bgcolor: '#f4f6fb', py: 3 }}>
+      <Box
+        component="main"
+        sx={{ minHeight: 'calc(100vh - 80px)', bgcolor: 'background.default', color: 'text.primary' }}
+      >
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/planner" element={<PlannerPage />} />

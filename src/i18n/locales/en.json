@@ -1,0 +1,122 @@
+{
+  "app": {
+    "name": "FarmPlan",
+    "tagline": "Seasonal crop planning with weather risk"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "planner": "Crop Planner"
+  },
+  "common": {
+    "language": "Language",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode"
+  },
+  "actions": {
+    "addFarm": "Add Farm",
+    "addCrop": "Add Crop",
+    "addActivity": "Add Activity",
+    "cancel": "Cancel",
+    "createFarm": "Create Farm",
+    "createCrop": "Create Crop",
+    "createActivity": "Create Activity",
+    "retry": "Retry"
+  },
+  "dashboard": {
+    "title": "FarmPlan Dashboard",
+    "subtitle": "Plan your season and stay ahead of the weather",
+    "stats": {
+      "farms": "Total Farms",
+      "crops": "Total Crops",
+      "activities": "Activities",
+      "highRisk": "High Risk"
+    },
+    "forecastAlert": "Current Forecast Alert",
+    "upcoming": "Upcoming Activities (Next 30 Days)",
+    "upcomingEmpty": "No upcoming activities in the next 30 days",
+    "loadingActivities": "Loading activities...",
+    "forecast": "5-Day Weather Forecast",
+    "highRiskTitle": "High Risk Activities — Review Needed",
+    "crop": "Crop",
+    "date": "Date",
+    "window": "Window",
+    "loadError": "Failed to load FarmPlan dashboard data. Please check your backend or network connection."
+  },
+  "weather": {
+    "rain": "Rain",
+    "rainChance": "Rain chance",
+    "temp": "Temp",
+    "wind": "Wind",
+    "humidity": "Humidity"
+  },
+  "forms": {
+    "farmName": "Farm name",
+    "region": "Region",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "cropName": "Crop name",
+    "variety": "Variety",
+    "sowDate": "Sow date",
+    "harvestDate": "Harvest date",
+    "estimatedYield": "Estimated yield",
+    "farm": "Farm",
+    "type": "Type",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "description": "Description",
+    "fillAll": "Please fill in all required fields.",
+    "createFarmError": "Unable to create farm. Please try again.",
+    "createCropError": "Unable to create crop. Please try again.",
+    "createActivityError": "Unable to create activity. Please try again.",
+    "unknownFarm": "Unknown Farm",
+    "unknownCrop": "Unknown Crop"
+  },
+  "activityType": {
+    "SOW": "Sow",
+    "TRANSPLANT": "Transplant",
+    "IRRIGATE": "Irrigate",
+    "FERTILIZE": "Fertilize",
+    "SPRAY": "Spray",
+    "HARVEST": "Harvest"
+  },
+  "risk": {
+    "LOW": "Low",
+    "MEDIUM": "Medium",
+    "HIGH": "High"
+  },
+  "cropName": {
+    "Wheat": "Wheat",
+    "Rice": "Rice",
+    "Tomato": "Tomato",
+    "Mustard": "Mustard"
+  },
+  "condition": {
+    "Clear": "Clear",
+    "Clouds": "Cloudy",
+    "Rain": "Rain",
+    "Drizzle": "Drizzle",
+    "Thunderstorm": "Thunderstorm",
+    "Snow": "Snow",
+    "Mist": "Mist",
+    "Haze": "Haze",
+    "Fog": "Fog"
+  },
+  "planner": {
+    "title": "FarmPlan Crop Planner",
+    "snapshotTitle": "Weather risk snapshot",
+    "snapshotDesc": "This planner uses the FarmPlan service layer to load crops, activities, and weather. When backend integration is enabled, the same service contract will provide production data.",
+    "loadingWeather": "Loading weather...",
+    "noWeather": "No weather snapshot available yet.",
+    "col": {
+      "activity": "Activity",
+      "risk": "Risk",
+      "start": "Start",
+      "end": "End"
+    }
+  },
+  "notFound": {
+    "title": "404 — Page not found",
+    "desc": "The page you are looking for does not exist. Use the navigation above to return to the dashboard.",
+    "back": "Go to Dashboard"
+  }
+}
