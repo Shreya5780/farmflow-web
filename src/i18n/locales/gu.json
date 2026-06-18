@@ -5,12 +5,71 @@
   },
   "nav": {
     "dashboard": "ડેશબોર્ડ",
-    "planner": "પાક આયોજક"
+    "planner": "પાક આયોજક",
+    "crops": "પાક",
+    "tasks": "કાર્યો",
+    "weather": "હવામાન",
+    "reports": "અહેવાલો"
   },
   "common": {
     "language": "ભાષા",
     "darkMode": "ડાર્ક મોડ",
-    "lightMode": "લાઇટ મોડ"
+    "lightMode": "લાઇટ મોડ",
+    "new": "નવું",
+    "viewAll": "બધું જુઓ"
+  },
+  "hero": {
+    "highTempAlert": "ઊંચા તાપમાનની ચેતવણી",
+    "highTempAdvice": "આજે ખાતરનો છંટકાવ ટાળો",
+    "rainAlert": "વરસાદની શક્યતા",
+    "rainAdvice": "ઇન્ડોર અથવા ઓછા જોખમવાળા કાર્યનું આયોજન કરો",
+    "goodAlert": "સારી ખેતર સ્થિતિ",
+    "goodAdvice": "ખેતરના કામ માટે અનુકૂળ હવામાન",
+    "viewForecast": "5-દિવસની આગાહી જુઓ"
+  },
+  "tiles": {
+    "tasksDue": "બાકી કાર્યો",
+    "tasksDueSub": "{{count}} આજે",
+    "harvestIn": "લણણીમાં",
+    "days": "દિવસ",
+    "riskLevel": "જોખમ સ્તર"
+  },
+  "myCrops": {
+    "title": "મારા પાક",
+    "harvest": "લણણી",
+    "empty": "હજી કોઈ પાક નથી — શરૂ કરવા માટે એક ઉમેરો."
+  },
+  "stage": {
+    "germination": "અંકુરણ",
+    "vegetative": "વાનસ્પતિક તબક્કો",
+    "flowering": "ફૂલ આવવાનો તબક્કો",
+    "maturity": "પરિપક્વતા"
+  },
+  "health": {
+    "healthy": "સ્વસ્થ",
+    "monitor": "નિરીક્ષણ",
+    "atRisk": "જોખમમાં"
+  },
+  "tasksPanel": {
+    "title": "આગામી કાર્યો",
+    "today": "આજે",
+    "empty": "કોઈ આગામી કાર્ય નથી"
+  },
+  "account": {
+    "profile": "પ્રોફાઇલ",
+    "settings": "સેટિંગ્સ"
+  },
+  "notifications": {
+    "title": "સૂચનાઓ",
+    "empty": "કોઈ નવી સૂચના નથી",
+    "highRisk": "ઊંચું હવામાન જોખમ: {{label}}",
+    "harvestSoon": "{{crop}} ની લણણી {{days}} દિવસમાં"
+  },
+  "weatherPage": {
+    "subtitle": "તમારા પ્રથમ ખેતર માટે 5-દિવસની આગાહી"
+  },
+  "comingSoon": {
+    "desc": "આ વિભાગ નિર્માણાધીન છે. ટૂંક સમયમાં ફરી તપાસો."
   },
   "actions": {
     "addFarm": "ખેતર ઉમેરો",

@@ -3,6 +3,8 @@ import { Box } from '@mui/material'
 import AppShell from './components/AppShell'
 import HomePage from './pages/HomePage'
 import PlannerPage from './pages/PlannerPage'
+import WeatherPage from './pages/WeatherPage'
+import ComingSoonPage from './pages/ComingSoonPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function App() {
@@ -16,6 +18,9 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/planner" element={<PlannerPage />} />
+          <Route path="/crops" element={<ComingSoonPage titleKey="nav.crops" />} />
+          <Route path="/weather" element={<WeatherPage />} />
+          <Route path="/reports" element={<ComingSoonPage titleKey="nav.reports" />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Box>

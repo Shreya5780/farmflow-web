@@ -5,12 +5,71 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "planner": "Crop Planner"
+    "planner": "Crop Planner",
+    "crops": "Crops",
+    "tasks": "Tasks",
+    "weather": "Weather",
+    "reports": "Reports"
   },
   "common": {
     "language": "Language",
     "darkMode": "Dark mode",
-    "lightMode": "Light mode"
+    "lightMode": "Light mode",
+    "new": "New",
+    "viewAll": "View all"
+  },
+  "hero": {
+    "highTempAlert": "High Temperature Alert",
+    "highTempAdvice": "Avoid fertilizer application today",
+    "rainAlert": "Rain Expected",
+    "rainAdvice": "Plan indoor or low-risk tasks",
+    "goodAlert": "Good Field Conditions",
+    "goodAdvice": "Favorable weather for field work",
+    "viewForecast": "View 5-Day Forecast"
+  },
+  "tiles": {
+    "tasksDue": "Tasks Due",
+    "tasksDueSub": "{{count}} Today",
+    "harvestIn": "Harvest In",
+    "days": "Days",
+    "riskLevel": "Risk Level"
+  },
+  "myCrops": {
+    "title": "My Crops",
+    "harvest": "Harvest",
+    "empty": "No crops yet — add one to get started."
+  },
+  "stage": {
+    "germination": "Germination",
+    "vegetative": "Vegetative Stage",
+    "flowering": "Flowering",
+    "maturity": "Maturity"
+  },
+  "health": {
+    "healthy": "Healthy",
+    "monitor": "Monitor",
+    "atRisk": "At Risk"
+  },
+  "tasksPanel": {
+    "title": "Upcoming Tasks",
+    "today": "Today",
+    "empty": "No upcoming tasks"
+  },
+  "account": {
+    "profile": "Profile",
+    "settings": "Settings"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No new notifications",
+    "highRisk": "High weather risk: {{label}}",
+    "harvestSoon": "Harvest {{crop}} in {{days}} day(s)"
+  },
+  "weatherPage": {
+    "subtitle": "5-day outlook for your first farm"
+  },
+  "comingSoon": {
+    "desc": "This section is under construction. Check back soon."
   },
   "actions": {
     "addFarm": "Add Farm",
